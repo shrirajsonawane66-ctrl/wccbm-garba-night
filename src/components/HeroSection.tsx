@@ -6,7 +6,17 @@ import garbaHeroImage from '../assets/images/garba_hero.jpg';
 export const HeroSection: React.FC = () => {
   return (
     <section id="home" className="relative pt-6 pb-16 lg:py-20 overflow-hidden">
-      
+      {/* Background Video - plays muted and looped */}
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover z-[-1] opacity-[0.5]"
+        src="/video/20260927_174848_0_UTC_0.mp4"
+        poster={garbaHeroImage}
+      />
+
       {/* Decorative Festive Canopy Fairy Lights across the top */}
       <div className="absolute top-0 left-0 right-0 h-16 pointer-events-none flex justify-around items-start opacity-70 z-10">
         {[...Array(16)].map((_, i) => (
