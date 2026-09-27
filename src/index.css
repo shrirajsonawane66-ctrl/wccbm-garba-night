@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+@custom-variant light (&:where(.light, .light *));
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  body {
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+.font-garba-title {
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 0, "WONK" 0;
+}
+
+.font-serif {
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+}
+
+.font-serif-royal {
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 25;
+}
+
+.font-script {
+  font-family: 'Great Vibes', cursive;
+  font-weight: 400;
+}
+
+/* Custom glow and festive effects */
+.glow-gold {
+  box-shadow: 0 0 35px -5px rgba(245, 158, 11, 0.35);
+}
+
+.glow-gold-subtle {
+  box-shadow: 0 0 20px -3px rgba(245, 158, 11, 0.2);
+}
+
+.glow-magenta {
+  box-shadow: 0 0 30px -5px rgba(233, 30, 99, 0.4);
+}
+
+/* Smooth background shimmer */
+@keyframes festive-float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(1deg);
+  }
+}
+
+.animate-festive-float {
+  animation: festive-float 6s ease-in-out infinite;
+}
+
+/* Custom ticket perforation effect */
+.ticket-perforation-left {
+  position: relative;
+}
+.ticket-perforation-left::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: inherit;
+}
