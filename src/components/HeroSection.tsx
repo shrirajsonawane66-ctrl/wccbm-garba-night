@@ -111,7 +111,7 @@ export const HeroSection: React.FC = () => {
             </div>
           </motion.div>
 
-          {/* Right Column: Glowing Festive Card with Dancer Photograph */}
+          {/* Right Column: Glowing Festive Card with Dancer Video */}
           <motion.div 
             initial={{ opacity: 0, scale: 0.92, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -125,14 +125,16 @@ export const HeroSection: React.FC = () => {
               {/* Main Card Container */}
               <div className="relative rounded-[24px] overflow-hidden bg-[#0e1422] border-2 border-amber-400/40 shadow-2xl">
                 
-                {/* Image Aspect ratio container with ambient dark overlay */}
+                {/* Video Aspect ratio container with ambient dark overlay */}
                 <div className="relative aspect-[3/4] w-full overflow-hidden group">
-                  <img
-                    src={garbaHeroImage}
-                    alt="Western College Students dancing Raas Garba under festive canopy lights"
-                    className="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-700"
-                    loading="eager"
-                    referrerPolicy="no-referrer"
+                  <video
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="w-full h-full object-cover object-center"
+                    src="/video/20260927_174848_0_UTC_0.mp4"
+                    poster={garbaHeroImage}
                   />
 
                   {/* Gradient vignette for text readability */}
