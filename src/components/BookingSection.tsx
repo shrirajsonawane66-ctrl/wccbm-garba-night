@@ -149,7 +149,7 @@ export const BookingSection: React.FC = () => {
 
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-            <CheckCircle2 className="w-5 h-5" />
+            <span className="text-amber-400 text-3xl">✓</span>
           </div>
           <div>
             <h3 className="text-2xl font-bold text-slate-100 dark:text-slate-100 light:text-slate-900 font-serif">
@@ -211,7 +211,7 @@ export const BookingSection: React.FC = () => {
               whileTap={{ scale: 0.98 }}
               className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-slate-200 bg-slate-800 hover:bg-slate-700 border border-slate-700 disabled:opacity-50 transition-colors"
             >
-              <Download className="w-4 h-4 text-amber-400" />
+              <span className="text-amber-400 text-2xl">↓</span>
               {downloading ? 'Preparing…' : 'Download E-Pass'}
             </motion.button>
           </div>
@@ -222,11 +222,11 @@ export const BookingSection: React.FC = () => {
           className="mt-3 w-full py-3 rounded-xl font-bold text-sm text-amber-400 border border-amber-500/40 hover:bg-amber-500/10 transition-colors flex items-center justify-center gap-2"
         >
           Open My Dashboard
-          <ArrowRight className="w-4 h-4" />
+          <span className="text-amber-400 text-2xl">→</span>
         </a>
 
         <div className="mt-4 flex items-center gap-2 text-center text-[11px] text-slate-500 justify-center">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+          <span className="text-amber-400 text-2xl">✓</span>
           Your pass is tied to this account ({profile.student_id}). No one else can claim or use it.
         </div>
       </motion.div>
@@ -315,7 +315,7 @@ export const BookingSection: React.FC = () => {
 const ProfileRow: React.FC<{ label: string; value: string; mono?: boolean }> = ({ label, value, mono }) => (
   <div className="flex items-center justify-between gap-3">
     <div className="flex items-center gap-2 text-[13px] text-slate-400">
-      <UserRound className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+      <span className="text-amber-400 text-2xl">👤</span>
       <span>{label}</span>
     </div>
     <span className={`text-sm font-semibold text-slate-100 text-right break-all ${mono ? 'font-mono' : ''}`}>{value}</span>

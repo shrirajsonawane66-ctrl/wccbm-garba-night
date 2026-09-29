@@ -99,9 +99,9 @@ export const Header: React.FC = () => {
             className="w-11 h-11 rounded-full flex items-center justify-center bg-slate-900/80 hover:bg-slate-800 dark:bg-slate-900/80 dark:hover:bg-slate-800 light:bg-amber-200/60 light:hover:bg-amber-200 text-amber-400 dark:text-amber-400 light:text-amber-800 border border-amber-500/20 transition-all duration-200 focus:outline-none"
           >
             {theme === 'dark' ? (
-              <Sun className="w-5 h-5 text-amber-400 hover:rotate-45 transition-transform" />
+              <span className="text-amber-400 text-3xl">☀️</span>
             ) : (
-              <Moon className="w-5 h-5 text-slate-800 hover:-rotate-12 transition-transform" />
+              <span className="text-slate-400 text-3xl">🌙</span>
             )}
           </button>
 
@@ -110,7 +110,7 @@ export const Header: React.FC = () => {
             href="/login"
             className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-full text-sm font-semibold text-slate-300 dark:text-slate-300 light:text-slate-700 border border-slate-700/70 dark:border-slate-700/70 light:border-slate-300 hover:border-amber-500/60 hover:text-amber-300 transition-colors duration-200"
           >
-            <UserRound className="w-4 h-4" />
+            <span className="text-slate-300 text-2xl">👤</span>
             <span>Student Login</span>
           </a>
 
@@ -122,7 +122,7 @@ export const Header: React.FC = () => {
             href="/signup"
             className="inline-flex items-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-full font-bold text-sm text-white shadow-lg shadow-orange-500/25 bg-gradient-to-r from-[#ff5e3a] via-[#f84f47] to-[#e91e63] hover:from-[#ff6b48] hover:to-[#f02b70] transition-all duration-300 focus:outline-none"
           >
-            <Ticket className="w-4 h-4 fill-white/20" />
+            <span className="text-amber-400 text-2xl">🎫</span>
             <span>Get E-Pass</span>
           </motion.a>
 
@@ -133,7 +133,7 @@ export const Header: React.FC = () => {
             aria-label="Toggle navigation menu"
             className="md:hidden p-2 rounded-lg text-slate-300 dark:text-slate-300 light:text-slate-800 hover:bg-slate-800/50"
           >
-            {mobileMenuOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}
+            {mobileMenuOpen ? <span className="text-slate-300 text-3xl">✕</span> : <span className="text-slate-300 text-3xl">☰</span>}
           </button>
         </div>
       </div>
@@ -167,7 +167,7 @@ export const Header: React.FC = () => {
                 onClick={() => setMobileMenuOpen(false)}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-[#ff5e3a] to-[#e91e63]"
               >
-                <Ticket className="w-4 h-4" />
+                <span className="text-amber-400 text-2xl">🎫</span>
                 <span>Create My E-Pass Account</span>
               </a>
               <a
@@ -175,7 +175,7 @@ export const Header: React.FC = () => {
                 onClick={() => setMobileMenuOpen(false)}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-full text-sm font-semibold text-amber-400 border border-amber-500/40"
               >
-                <UserRound className="w-4 h-4" />
+                <span className="text-slate-300 text-2xl">👤</span>
                 <span>Student Login</span>
               </a>
             </div>

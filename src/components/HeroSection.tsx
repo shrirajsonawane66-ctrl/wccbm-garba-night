@@ -1,9 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Sparkles, Ticket, ArrowRight, Music2, Flame, Heart } from 'lucide-react';
+import { Ticket, ArrowRight } from 'lucide-react';
 import garbaHeroImage from '../assets/images/garba_hero.jpg';
 
 export const HeroSection: React.FC = () => {
+  const [countdown, setCountdown] = useState({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+  });
+
+  useEffect(() => {
+    const targetDate = new Date('2026-10-03T18:00:00').getTime();
+    const now = new Date().getTime();
+    const diff = targetDate - now;
+
+    if (diff > 0) {
+      const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const m = Math.floor((diff / (1000 * 60)) % 60);
+      setCountdown({ days: d, hours: h, minutes: m });
+    }
+
+    const timer = setInterval(() => {
+      const now = new Date().getTime();
+      const diff = targetDate - now;
+      if (diff > 0) {
+        const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+        const m = Math.floor((diff / (1000 * 60)) % 60);
+        setCountdown({ days: d, hours: h, minutes: m });
+      }
+    }, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <section id="home" className="relative pt-6 pb-16 lg:py-20 overflow-hidden">
       {/* Background Video - plays muted and looped */}
@@ -47,11 +78,10 @@ export const HeroSection: React.FC = () => {
             transition={{ duration: 0.8, ease: 'easeOut' }}
             className="lg:col-span-7 flex flex-col items-start"
           >
-            {/* Sparkle Eyebrow */}
+            {/* Event Title */}
             <div className="flex items-center gap-2 mb-3 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 dark:text-amber-300">
-              <Sparkles className="w-4 h-4 text-amber-400" />
-              <span className="font-script text-xl sm:text-2xl text-amber-300">
-                Let's Groove to the
+              <span className="text-amber-300 font-medium">
+                Garba Night 2026
               </span>
             </div>
 
@@ -94,20 +124,22 @@ export const HeroSection: React.FC = () => {
               </motion.a>
             </div>
 
-            {/* Quick trust metrics */}
-            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3 pt-6 border-t border-slate-800/80 dark:border-slate-800/80 light:border-amber-900/10 text-xs sm:text-sm text-slate-400 dark:text-slate-400 light:text-slate-600">
-              <div className="flex items-center gap-1.5">
-                <Music2 className="w-4 h-4 text-amber-400" />
-                <span>Live Dhol & DJ Fusion</span>
+            {/* Countdown Timer */}
+            <div className="mt-8 text-center sm:text-left">
+              <div id="countdown-timer" className="flex items-center justify-center gap-2 sm:gap-4">
+                <div className="text-amber-400 font-bold text-lg sm:text-xl" id="countdown-days">
+                  <span data-value="days">{countdown.days}</span> Days
+                </div>
+                <div className="text-amber-400 font-bold text-lg sm:text-xl" id="countdown-hours">
+                  <span data-value="hours">{countdown.hours}</span> Hrs
+                </div>
+                <div className="text-amber-400 font-bold text-lg sm:text-xl" id="countdown-minutes">
+                  <span data-value="minutes">{countdown.minutes}</span> Min
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Flame className="w-4 h-4 text-orange-400" />
-                <span>500+ Dancers</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Heart className="w-4 h-4 text-pink-400" />
-                <span>Free Dandiya Sticks</span>
-              </div>
+              <p className="text-sm sm:text-base text-slate-400 dark:text-slate-400 light:text-slate-600 mt-2">
+                Garba Night 2026
+              </p>
             </div>
           </motion.div>
 
@@ -149,8 +181,8 @@ export const HeroSection: React.FC = () => {
                   {/* Bottom Bar matching screenshot exactly */}
                   <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5 flex items-center justify-between bg-gradient-to-t from-[#080c14] via-[#080c14]/90 to-transparent">
                     <div className="flex items-center gap-1.5 text-amber-300 font-semibold text-xs sm:text-sm">
-                      <Sparkles className="w-4 h-4 text-amber-400" />
-                      <span>Live Raas-Garba</span>
+                      <span className="text-amber-300 text-2xl">✦</span>
+                      <span>Complimentary Dandiya Sticks</span>
                     </div>
 
                     <div className="font-script text-lg sm:text-xl text-amber-200">
@@ -162,7 +194,7 @@ export const HeroSection: React.FC = () => {
 
               {/* Floating golden sparkle element */}
               <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-amber-400/20 backdrop-blur-md border border-amber-300/40 flex items-center justify-center text-amber-300">
-                <Sparkles className="w-4 h-4" />
+                <span className="text-amber-300 text-2xl">✦</span>
               </div>
             </div>
           </motion.div>

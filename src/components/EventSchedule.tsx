@@ -59,7 +59,7 @@ export const EventSchedule: React.FC = () => {
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-12">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 mb-3">
-            <Clock className="w-3.5 h-3.5" />
+            <span className="text-amber-400 text-2xl">🕐</span>
             <span className="text-xs uppercase font-bold tracking-widest">Plan Your Evening</span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-100 dark:text-slate-100 light:text-slate-900 font-serif">
@@ -108,7 +108,7 @@ export const EventSchedule: React.FC = () => {
                   className="relative pl-6 sm:pl-10 group"
                 >
                   {/* Timeline node */}
-                  <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-[#0c1220] border-2 border-amber-400 group-hover:bg-amber-400 transition-colors shadow-[0_0_8px_#f59e0b]" />
+                  <div className="absolute -left-[9px] top-1.5 w-4 h-4 rounded-full bg-amber-500 border-amber-400 group-hover:bg-amber-300 transition-colors shadow-[0_0_8px_#f59e0b]" />
 
                   <div className="p-4 sm:p-5 rounded-2xl bg-[#0e1424] dark:bg-[#0e1424] light:bg-white border border-amber-500/15 shadow-md">
                     <div className="flex items-center gap-2 mb-1">
@@ -142,7 +142,7 @@ export const EventSchedule: React.FC = () => {
               >
                 <div>
                   <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center mb-3">
-                    <Trophy className="w-5 h-5" />
+                    <span className="text-amber-400 text-3xl">✦</span>
                   </div>
                   <h4 className="font-bold text-base text-slate-100 dark:text-slate-100 light:text-slate-900 mb-1">
                     {award.title}

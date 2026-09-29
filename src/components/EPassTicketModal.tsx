@@ -291,7 +291,7 @@ export const EPassTicketModal: React.FC<EPassTicketModalProps> = ({ ticket, onCl
                 onClick={handleDownloadQr}
                 className="flex-1 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center justify-center gap-2 text-sm font-semibold transition-colors"
               >
-                <Download className="w-4 h-4 text-amber-400" />
+                <span className="text-amber-400 text-2xl">↓</span>
                 <span>Download QR</span>
               </button>
 
@@ -308,7 +308,7 @@ export const EPassTicketModal: React.FC<EPassTicketModalProps> = ({ ticket, onCl
               onClick={onClose}
               className="mt-3 w-full py-3 px-4 rounded-xl bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 border border-slate-700 flex items-center justify-center gap-2 text-sm font-semibold transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <span className="text-amber-400 text-2xl">←</span>
               <span>Back to Home</span>
             </button>
 

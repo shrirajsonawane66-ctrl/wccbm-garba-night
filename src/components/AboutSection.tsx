@@ -12,7 +12,7 @@ export const AboutSection: React.FC = () => {
     {
       title: 'Grand Dance Circles',
       description: 'Massive concentric circles under illuminated festive canopy strings where junior and senior batches groove together.',
-      icon: Compass,
+      icon: Sparkles,
     },
     {
       title: 'Prestigious Competitions',
@@ -33,7 +33,7 @@ export const AboutSection: React.FC = () => {
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 mb-3">
-            <Sparkles className="w-3.5 h-3.5" />
+            <span className="text-amber-400 text-2xl">✦</span>
             <span className="text-xs uppercase font-bold tracking-widest">Heritage & Celebration</span>
           </div>
           
@@ -60,7 +60,7 @@ export const AboutSection: React.FC = () => {
                 className="rounded-2xl bg-[#0c1220]/80 dark:bg-[#0c1220]/80 light:bg-white p-6 border border-amber-500/15 dark:border-amber-500/15 light:border-amber-900/10 hover:border-amber-500/40 transition-all group shadow-lg"
               >
                 <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-4 group-hover:scale-110 group-hover:bg-amber-500/20 transition-all">
-                  <Icon className="w-6 h-6" />
+                  <span className="text-amber-300 text-4xl">✦</span>
                 </div>
                 <h3 className="text-lg font-bold text-slate-100 dark:text-slate-100 light:text-slate-900 mb-2">
                   {item.title}
@@ -76,7 +76,7 @@ export const AboutSection: React.FC = () => {
         {/* Quote / College Principal Note */}
         <div className="mt-12 p-6 sm:p-8 rounded-2xl bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent border-l-4 border-amber-500 text-slate-300 dark:text-slate-300 light:text-slate-700">
           <div className="flex items-start gap-4">
-            <HeartHandshake className="w-8 h-8 text-amber-400 flex-shrink-0 mt-1" />
+            <span className="text-amber-400 text-2xl">✦</span>
             <div>
               <p className="italic text-base sm:text-lg mb-2">
                 "Garba is not merely dance; it is an expression of shared harmony, festive vitality, and cultural pride that reflects the enduring ethos of Western College."

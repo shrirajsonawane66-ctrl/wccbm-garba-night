@@ -41,14 +41,14 @@ export const LoginPopup: React.FC<LoginPopupProps> = ({ onClose }) => {
             aria-label="Close login popup"
             className="absolute top-3 right-3 z-10 p-2 rounded-full bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-700 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <span className="text-slate-400 text-2xl">✕</span>
           </button>
 
           <div className="p-6 sm:p-8 text-center">
             {/* Festive Header */}
             <div className="mb-6">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 mx-auto mb-4 shadow-lg shadow-amber-500/25">
-                <Sparkles className="w-8 h-8" />
+                <span className="text-amber-400 text-4xl">✦</span>
               </div>
               <h2 id="login-popup-title" className="text-2xl sm:text-3xl font-bold text-white font-serif">
                 Welcome to Western College Garba Night!
@@ -61,22 +61,22 @@ export const LoginPopup: React.FC<LoginPopupProps> = ({ onClose }) => {
             {/* Benefit highlights */}
             <div className="grid grid-cols-2 gap-3 mb-6 p-4 bg-[#0e1424] rounded-2xl border border-slate-800">
               <div className="flex flex-col items-center gap-1.5">
-                <Ticket className="w-5 h-5 text-amber-400" />
+                <span className="text-amber-400 text-3xl">🎫</span>
                 <span className="text-xs font-semibold text-slate-100">Free E-Pass</span>
                 <span className="text-[10px] text-slate-500">One per student</span>
               </div>
               <div className="flex flex-col items-center gap-1.5">
-                <Sparkles className="w-5 h-5 text-amber-400" />
+                <span className="text-amber-400 text-2xl">✦</span>
                 <span className="text-xs font-semibold text-slate-100">Live Raas-Garba</span>
                 <span className="text-[10px] text-slate-500">Dhol & DJ Fusion</span>
               </div>
               <div className="flex flex-col items-center gap-1.5">
-                <UserPlus className="w-5 h-5 text-amber-400" />
+                <span className="text-amber-400 text-3xl">✦</span>
                 <span className="text-xs font-semibold text-slate-100">Easy Signup</span>
                 <span className="text-[10px] text-slate-500">Student ID only</span>
               </div>
               <div className="flex flex-col items-center gap-1.5">
-                <LogIn className="w-5 h-5 text-amber-400" />
+                <span className="text-amber-400 text-3xl">🔑</span>
                 <span className="text-xs font-semibold text-slate-100">Secure Access</span>
                 <span className="text-[10px] text-slate-500">Supabase Auth</span>
               </div>

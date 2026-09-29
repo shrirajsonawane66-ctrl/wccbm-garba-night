@@ -12,7 +12,7 @@ export const ContactFooter: React.FC = () => {
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 shadow-md">
-                <Building2 className="w-5 h-5" />
+                <span className="text-amber-400 text-3xl">🏛️</span>
               </div>
               <div>
                 <h4 className="font-extrabold text-sm text-slate-100 font-serif">
@@ -32,21 +32,21 @@ export const ContactFooter: React.FC = () => {
                 aria-label="Instagram page"
                 className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-amber-400 hover:text-amber-300 hover:bg-slate-800 transition-colors"
               >
-                <Instagram className="w-4 h-4" />
+                <span className="text-amber-400 text-2xl">DM</span>
               </a>
               <a 
                 href="#contact" 
                 aria-label="Facebook page"
                 className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-amber-400 hover:text-amber-300 hover:bg-slate-800 transition-colors"
               >
-                <Facebook className="w-4 h-4" />
+                <span className="text-amber-400 text-2xl">FB</span>
               </a>
               <a 
                 href="#contact" 
                 aria-label="Official Website"
                 className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-amber-400 hover:text-amber-300 hover:bg-slate-800 transition-colors"
               >
-                <Globe className="w-4 h-4" />
+                <span className="text-amber-400 text-2xl"></span>
               </a>
             </div>
           </div>
@@ -58,23 +58,23 @@ export const ContactFooter: React.FC = () => {
             </h4>
             <ul className="space-y-2 text-xs">
               <li className="flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-amber-400 text-2xl">✦</span>
                 <span>Live Raas-Garba & Dhol Beats</span>
               </li>
               <li className="flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-amber-400 text-2xl">✦</span>
                 <span>Navratri Aarti & Sanedo</span>
               </li>
               <li className="flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-amber-400 text-2xl">✦</span>
                 <span>Best Attire & Dancing Trophies</span>
               </li>
               <li className="flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-amber-400 text-2xl">✦</span>
                 <span>Complimentary Dandiya Sticks</span>
               </li>
               <li className="flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-amber-400 text-2xl">✦</span>
                 <span>Food Stalls & Refreshment Zone</span>
               </li>
             </ul>
@@ -87,14 +87,14 @@ export const ContactFooter: React.FC = () => {
             </h4>
             <ul className="space-y-3 text-xs">
               <li className="flex items-start gap-2.5">
-                <Phone className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                <span className="text-amber-400 text-2xl mt-0.5">📞</span>
                 <div>
                   <span className="text-slate-200 block font-semibold">General Helpline:</span>
                   <span>+91 98200 12345 / 98201 67890</span>
                 </div>
               </li>
               <li className="flex items-start gap-2.5">
-                <Mail className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                <span className="text-amber-400 text-2xl mt-0.5">✉️</span>
                 <div>
                   <span className="text-slate-200 block font-semibold">Cultural Desk:</span>
                   <span>garba.cultural@westerncollege.edu.in</span>
@@ -109,7 +109,7 @@ export const ContactFooter: React.FC = () => {
               Campus Venue
             </h4>
             <div className="flex items-start gap-2.5 text-xs">
-              <MapPin className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+              <span className="text-amber-400 text-2xl mt-0.5">📍</span>
               <p className="leading-relaxed">
                 Western College Campus,<br />
                 Plot No. 2, Sector 9, Main Institutional Zone,<br />
@@ -129,7 +129,7 @@ export const ContactFooter: React.FC = () => {
           <p>© 2026 Western College of Commerce & Business Management (AUTONOMOUS). All rights reserved.</p>
           <div className="flex items-center gap-1">
             <span>Organized with</span>
-            <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+            <span className="text-rose-500">♥</span>
             <span>by Western College Student Council & Cultural Committee</span>
           </div>
         </div>

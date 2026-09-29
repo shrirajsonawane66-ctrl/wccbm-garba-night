@@ -1,0 +1,717 @@
+import { each, find } from '@posthog/browser-common/utils/general-utils'
+import Config from './config'
+import { Compression, RequestWithOptions, RequestResponse } from './types'
+import { formDataToQuery, getQueryParam, jsonStringify } from '@posthog/browser-common/utils/request-utils'
+
+import { logger } from '@posthog/browser-common/utils/logger'
+import {
+    AbortController,
+    CompressionStream,
+    fetch,
+    navigator,
+    XMLHttpRequest,
+} from '@posthog/browser-common/utils/globals'
+import { gzipSync, strToU8 } from 'fflate'
+
+import { _base64Encode } from '@posthog/browser-common/utils/encode-utils'
+import {
+    createNamedError,
+    gzipCompress,
+    isArray,
+    isGzipData,
+    isGzipRequest,
+    isNativeAsyncGzipError,
+    isNativeAsyncGzipReadError,
+    isUndefined,
+    parseRetryAfterMs,
+} from '@posthog/core'
+
+export { jsonStringify }
+
+// This completion is only used between the internal transport and retry queue.
+// Public callbacks are forwarded explicitly with just RequestResponse.
+export type TransportCallback = (response: RequestResponse, retryAfterMs?: number) => void
+
+interface TransportRequestOptions extends RequestWithOptions {
+    callback?: TransportCallback
+}
+
+interface RequestWithEncodedBody extends TransportRequestOptions {
+    _encodedBody?: EncodedBody
+}
+
+export const SUPPORTS_REQUEST = !!XMLHttpRequest || !!fetch
+
+// The SDK's fetch is the one captured at load, so page-level fetch wrappers never see it.
+// Every XMLHttpRequest shares one prototype, so the SDK's own XHRs are marked instead
+// and observers such as network metrics skip them. A WeakMap, not a WeakSet: this runs
+// at load and IE11 has no WeakSet.
+const posthogXHRs = new WeakMap<XMLHttpRequest, true>()
+export const isPostHogXHR = (xhr: XMLHttpRequest): boolean => posthogXHRs.has(xhr)
+
+const CONTENT_TYPE_PLAIN = 'text/plain'
+const CONTENT_TYPE_JSON = 'application/json'
+const CONTENT_TYPE_FORM = 'application/x-www-form-urlencoded'
+const SIXTY_FOUR_KILOBYTES = 64 * 1024
+// Fetch's 64KiB keepalive quota is shared by outstanding requests, not per body.
+// Retain headroom, and coordinate all named clients using this module. Other SDK copies,
+// vendors and sendBeacon can still consume browser quota we cannot observe.
+const KEEP_ALIVE_THRESHOLD = SIXTY_FOUR_KILOBYTES * 0.8
+let pendingKeepaliveBytes = 0
+let nativeAsyncGzipDisabled = false
+
+const removeURLParam = (url: string, param: string): string => {
+    const [urlWithoutHash, hash] = url.split('#')
+    const [baseUrl, search] = urlWithoutHash.split('?')
+
+    if (!search) {
+        return url
+    }
+
+    const updatedSearch = search
+        .split('&')
+        .filter((pair) => pair.split('=')[0] !== param)
+        .join('&')
+
+    return `${baseUrl}${updatedSearch ? `?${updatedSearch}` : ''}${hash ? `#${hash}` : ''}`
+}
+
+type EncodedBody = {
+    contentType: string
+    body: string | BlobPart | ArrayBuffer
+    estimatedSize: number
+}
+
+type EncodedRequest = {
+    url: string
+    encodedBody?: EncodedBody
+}
+
+/**
+ * Extends a URL with additional query parameters
+ * @param url - The URL to extend
+ * @param params - The parameters to add
+ * @param replace - When true (default), new params overwrite existing ones with same key. When false, existing params are preserved.
+ * @returns The URL with extended parameters
+ */
+export const extendURLParams = (url: string, params: Record<string, any>, replace: boolean = true): string => {
+    const [baseUrl, search] = url.split('?')
+    const newParams = { ...params }
+
+    const updatedSearch =
+        search?.split('&').map((pair) => {
+            const [key, origValue] = pair.split('=')
+            const value = replace ? (newParams[key] ?? origValue) : origValue
+            delete newParams[key]
+            return `${key}=${value}`
+        }) ?? []
+
+    const remaining = formDataToQuery(newParams)
+    if (remaining) {
+        updatedSearch.push(remaining)
+    }
+
+    return updatedSearch.length > 0 ? `${baseUrl}?${updatedSearch.join('&')}` : baseUrl
+}
+
+const encodeToDataString = (data: string | Record<string, any>): string => {
+    return 'data=' + encodeURIComponent(typeof data === 'string' ? data : jsonStringify(data))
+}
+
+const encodePostData = (options: RequestWithEncodedBody): EncodedBody | undefined => {
+    // Use pre-encoded body if available (set by async compression in the request entrypoint)
+    if (options._encodedBody) {
+        return options._encodedBody
+    }
+
+    const { data, compression } = options
+    if (!data) {
+        return
+    }
+
+    if (compression === Compression.GZipJS) {
+        const gzipData = gzipSync(strToU8(jsonStringify(data)), { mtime: 0 })
+        return {
+            contentType: CONTENT_TYPE_PLAIN,
+            body: gzipData.buffer.slice(gzipData.byteOffset, gzipData.byteOffset + gzipData.byteLength) as ArrayBuffer,
+            estimatedSize: gzipData.byteLength,
+        }
+    }
+
+    if (compression === Compression.Base64) {
+        const b64data = _base64Encode(jsonStringify(data))
+        const encodedBody = encodeToDataString(b64data)
+
+        return {
+            contentType: CONTENT_TYPE_FORM,
+            body: encodedBody,
+            estimatedSize: new Blob([encodedBody]).size,
+        }
+    }
+
+    const jsonBody = jsonStringify(data)
+    return {
+        contentType: CONTENT_TYPE_JSON,
+        body: jsonBody,
+        estimatedSize: new Blob([jsonBody]).size,
+    }
+}
+
+const encodePostDataSafely = (options: RequestWithEncodedBody): EncodedRequest => {
+    const fallbackToUncompressed = (): EncodedRequest => {
+        // beacon bodies must keep a CORS-simple content type even on the gzip-failure
+        // fallback — uncompressed application/json preflights, base64 form data does not
+        if (options.transport === 'sendBeacon') {
+            return {
+                url: extendURLParams(options.url, { compression: Compression.Base64 }),
+                encodedBody: encodePostData({
+                    ...options,
+                    compression: Compression.Base64,
+                    _encodedBody: undefined,
+                }),
+            }
+        }
+
+        return {
+            url: removeURLParam(options.url, 'compression'),
+            encodedBody: encodePostData({
+                ...options,
+                compression: undefined,
+                _encodedBody: undefined,
+            }),
+        }
+    }
+
+    let encodedBody: EncodedBody | undefined
+    try {
+        encodedBody = encodePostData(options)
+    } catch (error) {
+        if (isGzipRequest(options.compression, getQueryParam(options.url, 'compression'))) {
+            logger.error('Failed to gzip request body, sending uncompressed payload', error)
+            return fallbackToUncompressed()
+        }
+
+        throw error
+    }
+
+    if (
+        !encodedBody ||
+        !isGzipRequest(options.compression, getQueryParam(options.url, 'compression')) ||
+        isGzipData(encodedBody.body)
+    ) {
+        return { url: options.url, encodedBody }
+    }
+
+    nativeAsyncGzipDisabled = true
+    return fallbackToUncompressed()
+}
+
+const encodeRequest = (options: RequestWithEncodedBody): EncodedRequest | undefined => {
+    try {
+        return encodePostDataSafely(options)
+    } catch (error) {
+        logger.error(error)
+        options.callback?.({ statusCode: 0, error })
+        return undefined
+    }
+}
+
+/**
+ * Pre-encode the request body using async native CompressionStream.
+ * This avoids blocking the main thread with fflate's synchronous gzip,
+ * which can take 300ms+ on constrained devices.
+ *
+ * Callers must check preconditions (data exists, gzip compression, CompressionStream available)
+ * before calling this function.
+ */
+const preEncodeAsync = async (options: RequestWithEncodedBody): Promise<RequestWithEncodedBody> => {
+    const jsonData = jsonStringify(options.data)
+    const compressed = await gzipCompress(jsonData, Config.DEBUG, { rethrow: true })
+    if (!compressed) {
+        return options
+    }
+    const body = await compressed.arrayBuffer()
+
+    return {
+        ...options,
+        _encodedBody: {
+            contentType: CONTENT_TYPE_PLAIN,
+            body,
+            estimatedSize: body.byteLength,
+        },
+    }
+}
+
+/**
+ * Builds the reason used when aborting a fetch because our own request timeout elapsed.
+ * It keeps `name === 'AbortError'` (so callers that detect timeouts by error name keep working)
+ * but carries a descriptive message, so it is never a reason-less
+ * `signal is aborted without reason` exception.
+ */
+const timeoutAbortReason = (timeout?: number): Error => {
+    return createNamedError('AbortError', `PostHog request timed out${timeout ? ` after ${timeout}ms` : ''}`)
+}
+
+// A failed fetch at the network layer (ad blocker, dropped connection, CORS, page teardown)
+// rejects with a generic `TypeError` whose message varies by browser - Chrome
+// `Failed to fetch`, Firefox `NetworkError when attempting to fetch resource.`, Safari
+// `Load failed`. These are expected, retried failures rather than genuine errors, so we
+// log them at `warn` rather than `error`.
+const NETWORK_ERROR_MESSAGES = /Failed to fetch|NetworkError|Load failed/i
+const isExpectedNetworkError = (error: unknown): boolean => {
+    const err = error as Error | undefined
+    return err?.name === 'TypeError' && NETWORK_ERROR_MESSAGES.test(err?.message || '')
+}
+
+// Bound only the header component to 30 seconds: longer server waits may be
+// retried early, but the queue's jittered exponential backoff is never shortened.
+const readRetryAfter = (getHeader: () => string | null): number | undefined => {
+    try {
+        const delay = parseRetryAfterMs(getHeader())
+        return isUndefined(delay) ? undefined : Math.min(delay, 30_000)
+    } catch {
+        // Cross-origin headers may not be exposed, or a header accessor may throw.
+        return undefined
+    }
+}
+
+const xhr = (options: TransportRequestOptions) => {
+    const encodedRequest = encodeRequest(options)
+    if (!encodedRequest) {
+        return
+    }
+
+    const req = new XMLHttpRequest!()
+    posthogXHRs.set(req, true)
+    const { url, encodedBody } = encodedRequest
+    req.open(options.method || 'GET', url, true)
+    const { contentType, body } = encodedBody ?? {}
+
+    each(options.headers, function (headerValue, headerName) {
+        req.setRequestHeader(headerName, headerValue)
+    })
+
+    if (contentType) {
+        req.setRequestHeader('Content-Type', contentType)
+    }
+
+    if (options.timeout) {
+        req.timeout = options.timeout
+    }
+    req.onreadystatechange = () => {
+        // XMLHttpRequest.DONE == 4, except in safari 4
+        if (req.readyState === 4) {
+            const response: RequestResponse = {
+                statusCode: req.status,
+                text: req.responseText,
+            }
+            if (req.status === 200) {
+                try {
+                    response.json = JSON.parse(req.responseText)
+                } catch {
+                    // logger.error(e)
+                }
+            }
+
+            options.callback?.(
+                response,
+                readRetryAfter(() => req.getResponseHeader('Retry-After'))
+            )
+        }
+    }
+    req.send(body)
+}
+
+const _fetch = (options: TransportRequestOptions & { _keepaliveDisabled?: boolean }) => {
+    const encodedRequest = encodeRequest(options)
+    if (!encodedRequest) {
+        return
+    }
+
+    const { url, encodedBody } = encodedRequest
+    const { contentType, body, estimatedSize } = encodedBody ?? {}
+
+    const headers = new Headers()
+    each(options.headers, function (headerValue, headerName) {
+        headers.append(headerName, headerValue)
+    })
+
+    if (contentType) {
+        headers.append('Content-Type', contentType)
+    }
+
+    let aborter: { signal: any; timeout: ReturnType<typeof setTimeout> } | null = null
+    // Set the instant our own timeout fires, before the abort propagates. This is the source of
+    // truth for "we timed out ourselves" - see the `.catch` below for why we can't rely on the
+    // abort reason.
+    let timedOut = false
+
+    if (AbortController) {
+        const controller = new AbortController()
+        aborter = {
+            signal: controller.signal,
+            timeout: setTimeout(() => {
+                timedOut = true
+                // Abort with an explicit reason. Without one, the browser rejects the fetch with a
+                // reason-less `DOMException: AbortError: signal is aborted without reason`, which is
+                // indistinguishable from a host app's own aborted fetches wherever it surfaces (the
+                // `{ statusCode: 0, error }` callback, logs, stack traces). An explicit reason makes
+                // our own request timeouts identifiable. We keep `name === 'AbortError'` so existing
+                // timeout handling (e.g. feature flag timeout detection) keeps working.
+                try {
+                    controller.abort(timeoutAbortReason(options.timeout))
+                } catch (error) {
+                    // Reachable only when `abort()` itself throws, i.e. when a third-party script
+                    // has patched or polyfilled `AbortController.prototype.abort`. A listener the
+                    // host app or a fetch wrapper attached natively to the signal we passed cannot
+                    // get here: `abort()` fires the `abort` event through `dispatchEvent`, which
+                    // *reports* a listener's exception to the global error handler and returns
+                    // normally, so that throw still surfaces as an uncaught error with our timer
+                    // frames on the stack and no guard here can contain it. A patched `abort()`
+                    // that throws would otherwise escape this timer, so route it through the same
+                    // `{ statusCode: 0, error }` path as every other transport failure and let the
+                    // request queue retry.
+                    handleError(error)
+                }
+            }, options.timeout),
+        }
+    }
+
+    // One request reports one outcome. Both our timeout callback and the fetch can produce a
+    // result - a patched `abort()` that throws inside the timer, and then either the fetch
+    // rejecting or, when that throw happened before the abort took effect, the still-live fetch
+    // delivering a real response - so whichever settles first reports and later results are
+    // dropped.
+    let settled = false
+
+    const handleError = (error: any) => {
+        if (settled) {
+            return
+        }
+        settled = true
+        // Detect our own timeout via the `timedOut` flag rather than by comparing `error`
+        // against the reason we passed to `controller.abort(...)`. Not every browser propagates
+        // the abort reason to the fetch rejection - some reject with a generic native
+        // `DOMException: AbortError: The operation was aborted.` instead - so a reference (or
+        // message) comparison misses those and misclassifies our own timeout as a real error.
+        // The flag is set synchronously the instant our timeout fires, and we additionally
+        // require `name === 'AbortError'` so a genuine network error that happens to settle
+        // just after the timeout is never mislabelled.
+        if ((timedOut && (error as Error)?.name === 'AbortError') || isExpectedNetworkError(error)) {
+            // Expected, benign failures the request queue already retries - our own request
+            // timeout (an intentional abort), or a network-level `TypeError` (ad blocker,
+            // dropped connection, CORS, page teardown). Neither is a genuine failure, so log
+            // at `warn` rather than `error`. (For setups running with debug logging and
+            // `capture_console_errors` both enabled, this also keeps them out of error
+            // tracking's console-error capture.)
+            logger.warn(error)
+        } else {
+            logger.error(error)
+        }
+        options.callback?.({ statusCode: 0, error })
+    }
+
+    let reservedBytes = 0
+    const cleanup = () => {
+        pendingKeepaliveBytes -= reservedBytes
+        reservedBytes = 0
+        if (aborter) {
+            clearTimeout(aborter.timeout)
+        }
+    }
+
+    try {
+        const fetchOptions: RequestInit = {
+            method: options?.method || 'GET',
+            headers,
+            // Keep the referring origin for domain checks without sending the page path or query.
+            referrerPolicy: 'strict-origin',
+            body,
+            signal: aborter?.signal,
+            ...options.fetchOptions,
+        }
+        const requestSize = estimatedSize ?? (isUndefined(body) ? 0 : undefined)
+        // Respect runtime opt-out, but do not let untyped options override the safety budget
+        // or beacon-rejection fallback. A replaced body has no trustworthy encoded size.
+        fetchOptions.keepalive =
+            fetchOptions.method === 'POST' &&
+            !options._keepaliveDisabled &&
+            fetchOptions.keepalive !== false &&
+            fetchOptions.body === body &&
+            !isUndefined(requestSize) &&
+            requestSize >= 0 &&
+            pendingKeepaliveBytes + requestSize < KEEP_ALIVE_THRESHOLD
+        if (fetchOptions.keepalive) {
+            reservedBytes = requestSize!
+            pendingKeepaliveBytes += reservedBytes
+        }
+        // Reserve immediately before dispatch (after async encoding). Fetch resolves at headers:
+        // retain bytes through body consumption, including while timeout/abort is still pending.
+        // A patched abort that does not terminate fetch must not replenish the budget.
+        fetch!(url, fetchOptions)
+            .then((response) => {
+                return response.text().then((responseText) => {
+                    if (settled) {
+                        // Our timeout callback already reported a failure for this request, so the
+                        // request queue has seen `{ statusCode: 0 }` and queued a retry. Reporting
+                        // this response too would give one request two contradictory outcomes.
+                        return
+                    }
+
+                    const res: RequestResponse = {
+                        statusCode: response.status,
+                        text: responseText,
+                    }
+
+                    if (response.status === 200) {
+                        try {
+                            res.json = JSON.parse(responseText)
+                        } catch (e) {
+                            logger.error(e)
+                        }
+                    }
+
+                    settled = true
+                    // A callback can start the next batch immediately, including by resolving a promise.
+                    cleanup()
+                    options.callback?.(
+                        res,
+                        readRetryAfter(() => response.headers.get('Retry-After'))
+                    )
+                })
+            })
+            .catch((error) => {
+                cleanup()
+                handleError(error)
+            })
+            .finally(cleanup)
+    } catch (error) {
+        // `window.fetch` can be monkey-patched by third-party scripts (e.g. a storefront/analytics
+        // wrapper) to throw *synchronously* instead of returning a rejected promise. Because we may
+        // call `_fetch` synchronously inside the host app's call stack (e.g. web experiments loaded
+        // via `onFeatureFlags`), that throw would otherwise escape as an unhandled exception and
+        // pollute error tracking. Route it through the same handling as an async rejection so the
+        // request queue just retries. `.finally()` never runs when the call throws synchronously,
+        // so clear the timeout here too.
+        cleanup()
+        handleError(error)
+    }
+
+    return
+}
+
+// below this size a rejection means the shared quota is exhausted, not that the payload is too big
+const BEACON_SPLIT_FLOOR_BYTES = 16 * 1024
+
+const addSentAtToBody = (
+    data: NonNullable<RequestWithOptions['data']>,
+    sentAt = new Date().toISOString()
+): NonNullable<RequestWithOptions['data']> => {
+    if (!isArray(data)) {
+        return { ...data, sent_at: sentAt }
+    }
+
+    return data.map((item) => ({ ...item, sent_at: sentAt }))
+}
+
+const _sendBeacon = (options: TransportRequestOptions) => {
+    // beacon documentation https://w3c.github.io/beacon/
+    // beacons format the message and use the type property
+
+    try {
+        const { url, encodedBody } = encodePostDataSafely(options)
+        const { contentType, body, estimatedSize } = encodedBody ?? {}
+        if (!body) {
+            return
+        }
+        // sendBeacon requires a Blob to set the Content-Type header correctly.
+        // Without wrapping, ArrayBuffer bodies are sent with no Content-Type,
+        // which can cause issues with proxies/WAFs that require it.
+        const sendBeaconBody = body instanceof Blob ? body : new Blob([body], { type: contentType })
+        if (navigator!.sendBeacon!(url, sendBeaconBody)) {
+            return
+        }
+
+        // rejected: over the page's shared ~64KiB in-flight keepalive quota
+        // (https://fetch.spec.whatwg.org/#http-network-or-cache-fetch) — halve so what fits still delivers
+        const batch = isArray(options.data) ? options.data : options.data?.batch
+        if (isArray(batch) && batch.length > 1 && (estimatedSize ?? 0) > BEACON_SPLIT_FLOOR_BYTES) {
+            const mid = Math.ceil(batch.length / 2)
+            const splitData = (events: Record<string, any>[]): RequestWithOptions['data'] =>
+                isArray(options.data) ? events : { ...options.data, batch: events }
+            _sendBeacon({ ...options, data: splitData(batch.slice(0, mid)) })
+            _sendBeacon({ ...options, data: splitData(batch.slice(mid)) })
+            return
+        }
+
+        logger.warn(
+            `Beacon of ~${estimatedSize ?? 0} bytes was rejected by the browser, falling back to ${fetch ? 'fetch' : 'XHR'}`
+        )
+        if (fetch) {
+            // _keepaliveDisabled: a beacon-rejected payload would fail a keepalive fetch too (shared quota)
+            _fetch({ ...options, _keepaliveDisabled: true })
+        } else {
+            xhr(options)
+        }
+    } catch (error) {
+        // send beacon is a best-effort, fire-and-forget mechanism on page unload,
+        // we don't want to throw errors here
+        logger.warn('Beacon send failed', error)
+    }
+}
+
+const buildRequestURL = (
+    url: string,
+    method: RequestWithOptions['method'],
+    compression?: RequestWithOptions['compression'],
+    timestampMode?: RequestWithOptions['timestampMode']
+): string => {
+    const timestampParam = timestampMode === 'query' ? (method === 'POST' ? 'sent_at' : '_') : undefined
+
+    return extendURLParams(compression === Compression.GZipJS ? removeURLParam(url, 'compression') : url, {
+        ...(timestampParam ? { [timestampParam]: Date.now().toString() } : {}),
+        ...(compression === Compression.GZipJS ? {} : { compression }),
+    })
+}
+
+const addSentAtToCaptureBody = (data: NonNullable<RequestWithOptions['data']>): Record<string, any> => {
+    const batch = (isArray(data) ? data : [data]).map((event) => ({
+        ...event,
+        // This is the typed canonical timestamp override, not an arbitrary event property.
+        // oxlint-disable-next-line posthog-js/no-direct-date-check
+        ...(event.timestamp instanceof Date && !isNaN(event.timestamp.getTime())
+            ? { timestamp: event.timestamp.toISOString() }
+            : {}),
+    }))
+    const firstEvent = batch[0]
+
+    return {
+        api_key: firstEvent?.properties?.token ?? firstEvent?.token,
+        batch,
+        sent_at: new Date().toISOString(),
+    }
+}
+
+// Keep initialization local and pure so importing URL helpers does not retain transports and compression.
+const AVAILABLE_TRANSPORTS = /* @__PURE__ */ (() => {
+    const transports: {
+        transport: RequestWithOptions['transport']
+        method: (options: TransportRequestOptions) => void
+    }[] = []
+
+    // We add the transports in order of preference
+    if (fetch) {
+        transports.push({
+            transport: 'fetch',
+            method: _fetch,
+        })
+    }
+
+    if (XMLHttpRequest) {
+        transports.push({
+            transport: 'XHR',
+            method: xhr,
+        })
+    }
+
+    if (navigator?.sendBeacon) {
+        transports.push({
+            transport: 'sendBeacon',
+            method: _sendBeacon,
+        })
+    }
+
+    return transports
+})()
+
+// This is the entrypoint. It takes care of sanitizing the options and then calls the appropriate request method.
+export const request = (_options: RequestWithOptions, onResponse?: TransportCallback) => {
+    // Clone the options so we don't modify the original object
+    const options: RequestWithEncodedBody = {
+        ..._options,
+        callback: onResponse ?? ((response) => _options.callback?.(response)),
+    }
+    options.timeout = options.timeout || 60000
+
+    const transport = options.transport ?? 'fetch'
+
+    // beacons fire during page unload, where a CORS preflight cannot complete — the body
+    // must keep a CORS-simple content type, which uncompressed (application/json) is not
+    if (transport === 'sendBeacon' && isUndefined(options.compression) && options.data) {
+        options.compression = Compression.Base64
+    }
+
+    if (options.method === 'POST' && options.data) {
+        if (options.timestampMode === 'capture-body') {
+            options.data = addSentAtToCaptureBody(options.data)
+        } else if (options.timestampMode === 'body') {
+            options.data = addSentAtToBody(options.data)
+        }
+    }
+
+    options.url = buildRequestURL(options.url, options.method, options.compression, options.timestampMode)
+
+    const availableTransports = AVAILABLE_TRANSPORTS.filter(
+        (t) => !options.disableTransport || !t.transport || !options.disableTransport.includes(t.transport)
+    )
+
+    const transportMethod =
+        find(availableTransports, (t) => t.transport === transport)?.method ?? availableTransports[0].method
+
+    if (!transportMethod) {
+        throw new Error('No available transport method')
+    }
+
+    // A patched global can throw outside a transport's own guards. Route these errors
+    // through the normal failure callback for both synchronous and async compression.
+    const safeTransportMethod = (opts: RequestWithEncodedBody) => {
+        try {
+            transportMethod(opts)
+        } catch (error) {
+            if (isExpectedNetworkError(error)) {
+                logger.warn(error)
+            } else {
+                logger.error(error)
+            }
+            options.callback?.({ statusCode: 0, error })
+        }
+    }
+
+    // For non-sendBeacon transports, use async native CompressionStream when available
+    // to avoid blocking the main thread with fflate's synchronous gzip (which can take 300ms+).
+    // sendBeacon must remain synchronous as it's used during page unload.
+    if (
+        transport !== 'sendBeacon' &&
+        !options.preferSyncCompression &&
+        options.data &&
+        options.compression === Compression.GZipJS &&
+        !!CompressionStream &&
+        typeof Promise !== 'undefined' &&
+        !nativeAsyncGzipDisabled
+    ) {
+        preEncodeAsync(options)
+            .then((encodedOptions) => {
+                safeTransportMethod(encodedOptions)
+            })
+            .catch((error) => {
+                if (isNativeAsyncGzipReadError(error)) {
+                    nativeAsyncGzipDisabled = true
+                    safeTransportMethod({
+                        ...options,
+                        compression: undefined,
+                        url: buildRequestURL(_options.url, _options.method, undefined, _options.timestampMode),
+                    })
+                    return
+                }
+
+                if (isNativeAsyncGzipError(error)) {
+                    nativeAsyncGzipDisabled = true
+                }
+
+                // If async compression fails for another reason, fall back to the synchronous fflate path
+                safeTransportMethod(options)
+            })
+    } else {
+        safeTransportMethod(options)
+    }
+}

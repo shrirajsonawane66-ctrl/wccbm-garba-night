@@ -22,7 +22,15 @@
       ]
     },
     "allowImportingTsExtensions": true,
-    "noEmit": true,"allowImportingTsExtensions": true
-  }
+    "noEmit": true
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/re",
+    "fix_hero.cjs",
+    "fix_hero2.cjs",
+    "fix_eventquickbar.js"
+  ]
 }
 

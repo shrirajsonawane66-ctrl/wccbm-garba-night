@@ -36,7 +36,7 @@ export const RulesAndFaq: React.FC = () => {
       <div className="mb-16">
         <div className="text-center max-w-2xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 mb-2">
-            <CheckCircle className="w-3.5 h-3.5" />
+            <span className="text-amber-400 text-2xl">✓</span>
             <span className="text-xs uppercase font-bold tracking-widest">General Guidelines</span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-100 dark:text-slate-100 light:text-slate-900 font-serif">
@@ -53,7 +53,7 @@ export const RulesAndFaq: React.FC = () => {
                 className="p-5 rounded-2xl bg-[#0c1220]/70 dark:bg-[#0c1220]/70 light:bg-white border border-amber-500/20 shadow-md flex flex-col items-start"
               >
                 <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center mb-3">
-                  <Icon className="w-5 h-5" />
+                  <span className="text-amber-300 text-4xl">✦</span>
                 </div>
                 <h4 className="font-bold text-base text-slate-100 dark:text-slate-100 light:text-slate-900 mb-1.5">
                   {rule.title}
